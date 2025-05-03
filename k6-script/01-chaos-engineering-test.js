@@ -75,7 +75,36 @@ function setupPaymentFailRate() {
 
 // 초기화 함수 - 한 번만 실행됨
 export function setup() {
-  console.log('설정 중: 결제 실패율을 30%로 설정');
+  console.log('설정 중: 테스트 사용자 생성 및 결제 실패율 설정');
+  
+  // 테스트 사용자 생성
+  const signupPayload = JSON.stringify({
+    username: 'user123',
+    email: 'user123@example.com',
+    password: 'password123'
+  });
+
+  const signupParams = {
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  };
+
+  const signupRes = http.post(`${BASE_URL}:8001/signup`, signupPayload, signupParams);
+  console.log(`사용자 생성 응답: ${signupRes.status}, ${signupRes.body}`);
+  
+  if (signupRes.status === 201 || signupRes.status === 400) {
+    // 400은 이미 가입된 사용자일 수 있음
+    console.log('사용자 생성/확인 완료');
+    
+    // 로그인 확인
+    if (login()) {
+      console.log('로그인 테스트 성공, 인증 서비스 정상 작동');
+    } else {
+      console.log('주의: 로그인 테스트 실패, 테스트에 영향이 있을 수 있습니다.');
+    }
+  }
+  
   setupPaymentFailRate();
   console.log('카오스 엔지니어링 테스트 준비 완료');
 }
