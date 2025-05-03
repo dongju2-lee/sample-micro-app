@@ -5,7 +5,7 @@
 
 ## 아키텍처
 
-![아키텍처](./docs/architecture.png)
+![아키텍처](./architecture.png)
 
 이 시스템은 다음과 같은 마이크로서비스로 구성되어 있습니다:
 
