@@ -22,6 +22,8 @@
 - **캐싱**: Redis
 - **컨테이너화**: Docker, Docker Compose
 - **로드 밸런싱**: NGINX
+- **모니터링**: Prometheus, Loki, Tempo, Grafana
+- **분산 추적**: OpenTelemetry, Tempo
 
 ## 시작하기
 
@@ -35,15 +37,15 @@
 
 ```bash
 # 로그 저장용 볼륨 생성
-docker volume create app_logs
+docker volume create sample-micro-app_microservices_logs
 
 # 마이크로서비스와 모니터링 시스템 간 통신을 위한 네트워크 생성
 docker network create monitoring
 ```
 
 이 리소스들은 docker-compose.yml 파일에서 외부 리소스로 지정되어 있어 미리 생성해야 합니다:
-- `app_logs`: 마이크로서비스의 로그를 저장하고 Promtail이 수집할 수 있도록 하는 공유 볼륨
-- `monitoring`: 마이크로서비스와 모니터링 인프라(Prometheus, Loki, Grafana 등) 간의 통신을 위한 공유 네트워크
+- `sample-micro-app_microservices_logs`: 마이크로서비스의 로그를 저장하고 Promtail이 수집할 수 있도록 하는 공유 볼륨
+- `monitoring`: 마이크로서비스와 모니터링 인프라(Prometheus, Loki, Tempo, Grafana 등) 간의 통신을 위한 공유 네트워크
 
 ### 실행 방법
 
@@ -68,6 +70,8 @@ docker-compose up -d
 - Order Service: http://localhost:8003
 - API Gateway: http://localhost:80
 - Grafana (모니터링): http://localhost:3000 (admin / password)
+- Prometheus (메트릭): http://localhost:9090
+- Tempo (분산 추적): http://localhost:3200
 
 ### API 문서 (Swagger UI)
 
@@ -313,6 +317,103 @@ curl -X POST http://localhost:8001/chaos/error -H "Content-Type: application/jso
 ## 트러블슈팅
 
 ### 서비스가 시작되지 않는 경우
+
+```bash
+# 로그 확인
+docker-compose logs -f
+
+# 특정 서비스 로그만 확인
+docker-compose logs -f user-service
+```
+
+### 데이터 초기화
+
+```bash
+# 모든 컨테이너와 볼륨 삭제
+docker-compose down -v
+
+# 다시 시작
+docker-compose up -d
+```
+
+## 분산 추적 (OpenTelemetry)
+
+이 프로젝트는 OpenTelemetry를 사용하여 마이크로서비스 간 트레이스를 수집하고 가시화합니다. 이를 통해 서비스 간 요청 흐름을 추적하고 성능 병목 현상을 식별할 수 있습니다.
+
+### OpenTelemetry 구성
+
+각 마이크로서비스는 다음과 같은 방식으로 OpenTelemetry가 설정되어 있습니다:
+
+1. **Zero-code 자동 계측**: 각 서비스의 Dockerfile에 다음 항목이 포함되어 있습니다:
+   ```docker
+   # OpenTelemetry 관련 패키지 설치
+   RUN pip install opentelemetry-distro opentelemetry-exporter-otlp
+   RUN opentelemetry-bootstrap -a install
+
+   # OpenTelemetry 자동계측 실행 
+   CMD ["opentelemetry-instrument", "--service_name", "서비스명", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+   ```
+
+2. **환경 변수 설정**: 각 서비스에 다음 환경 변수가 설정되어 있습니다:
+   ```
+   - OTEL_SERVICE_NAME=서비스명
+   - OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4317
+   - OTEL_RESOURCE_ATTRIBUTES=service.name=서비스명,service.namespace=food-delivery
+   - OTEL_TRACES_EXPORTER=otlp
+   - OTEL_METRICS_EXPORTER=otlp
+   ```
+
+### 트레이스 확인 방법
+
+1. 웹 브라우저에서 Grafana에 접속합니다: http://localhost:3000 (사용자 이름: admin, 비밀번호: password)
+2. 왼쪽 메뉴에서 Explore 아이콘을 클릭합니다.
+3. 데이터 소스로 "Tempo"를 선택합니다.
+4. 서비스를 호출한 후, 트레이스 목록이 표시됩니다.
+5. 특정 트레이스를 클릭하여 상세 정보를 확인할 수 있습니다.
+
+### 트레이스 데이터 생성
+
+트레이스 데이터를 생성하려면 마이크로서비스 API를 호출해야 합니다. 예를 들어:
+
+```bash
+# 사용자 로그인
+curl -X POST http://localhost:8001/login -H "Content-Type: application/json" -d '{"username": "user", "password": "pass"}'
+
+# 메뉴 조회
+curl -X GET http://localhost:8002/menus
+
+# 주문 생성
+curl -X POST http://localhost:8003/orders -H "Authorization: Bearer {토큰}" -H "Content-Type: application/json" -d '{
+  "items": [{"menu_id": 1, "quantity": 2}],
+  "address": "서울시 강남구 123-45",
+  "phone": "010-1234-5678"
+}'
+```
+
+이러한 API 호출은 마이크로서비스 간의 통신을 트리거하고 각 서비스에서 트레이스 데이터가 생성됩니다.
+
+## 트러블슈팅
+
+### OpenTelemetry 관련 문제
+
+#### 트레이스 데이터가 보이지 않는 경우
+
+1. Tempo 서비스가 실행 중인지 확인합니다:
+   ```bash
+   docker ps | grep tempo
+   ```
+
+2. 마이크로서비스 로그에서 OTLP 관련 오류를 확인합니다:
+   ```bash
+   docker-compose logs user-service | grep -i otlp
+   ```
+
+3. 호스트 연결 문제가 발생하는 경우, 환경 변수 설정을 확인합니다:
+   ```bash
+   # docker-compose.yml 파일에서 OTEL_EXPORTER_OTLP_ENDPOINT 값을 확인
+   ```
+
+#### 서비스가 시작되지 않는 경우
 
 ```bash
 # 로그 확인

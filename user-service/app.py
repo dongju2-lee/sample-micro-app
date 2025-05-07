@@ -32,7 +32,7 @@ DB_URL = os.getenv("DB_URL", "postgresql://user:pass@localhost:5432/user")
 JWT_SECRET = os.getenv("JWT_SECRET", "mysecretkey")
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
+ACCESS_TOKEN_EXPㅣIRE_MINUTES = 60
 
 # 데이터베이스 설정
 engine = create_engine(DB_URL)

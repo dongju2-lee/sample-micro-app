@@ -12,6 +12,11 @@ services:
       - DB_URL=postgresql://user:pass@user-db:5432/user
       - JWT_SECRET=mysecretkey
       - REDIS_URL=redis://redis:6379/0
+      - OTEL_SERVICE_NAME=user-service
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4317
+      - OTEL_RESOURCE_ATTRIBUTES=service.name=user-service,service.namespace=food-delivery
+      - OTEL_TRACES_EXPORTER=otlp
+      - OTEL_METRICS_EXPORTER=otlp
     volumes:
       - ./shared:/app/shared
       - microservices_logs:/var/log/microservices
@@ -53,6 +58,11 @@ services:
     environment:
       - DB_URL=postgresql://restaurant:pass@restaurant-db:5432/restaurant
       - REDIS_URL=redis://redis:6379/1
+      - OTEL_SERVICE_NAME=restaurant-service
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4317
+      - OTEL_RESOURCE_ATTRIBUTES=service.name=restaurant-service,service.namespace=food-delivery
+      - OTEL_TRACES_EXPORTER=otlp
+      - OTEL_METRICS_EXPORTER=otlp
     volumes:
       - ./shared:/app/shared
       - microservices_logs:/var/log/microservices
@@ -112,6 +122,11 @@ services:
       - USER_SERVICE_URL=http://user-service:8000
       - RESTAURANT_SERVICE_URL=http://restaurant-service:8000
       - REDIS_URL=redis://redis:6379/2
+      - OTEL_SERVICE_NAME=order-service
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4317
+      - OTEL_RESOURCE_ATTRIBUTES=service.name=order-service,service.namespace=food-delivery
+      - OTEL_TRACES_EXPORTER=otlp
+      - OTEL_METRICS_EXPORTER=otlp
     volumes:
       - ./shared:/app/shared
       - microservices_logs:/var/log/microservices
