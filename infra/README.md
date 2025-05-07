@@ -38,12 +38,38 @@ docker-compose up -d
 
 마이크로서비스를 시작하기 전에 이 모니터링 인프라를 먼저 시작하는 것이 좋습니다.
 
+## 데이터 소스 설정
+
+Grafana는 자동으로 Prometheus, Loki, Tempo 데이터 소스를 설정합니다.
+
+![데이터 소스 설정](./images/datasource.png)
+
 ## 접속 정보
 
 - **Grafana**: http://localhost:3000 (admin / password)
 - **Prometheus**: http://localhost:9090
 - **Loki**: http://localhost:3100
 - **Tempo**: http://localhost:3200
+
+## 모니터링 시스템 상세
+
+### Prometheus (메트릭 수집)
+
+Prometheus는 시계열 데이터베이스로 메트릭을 수집하고 저장합니다. 마이크로서비스에서 노출된 메트릭을 주기적으로 수집하고 저장합니다.
+
+![Prometheus 대시보드](./images/prometheus.png)
+
+### Loki (로그 수집)
+
+Loki는 로그 집계 시스템으로, 마이크로서비스에서 생성된 로그를 수집하여 중앙에서 관리합니다. Promtail을 에이전트로 사용하여 로그 파일을 읽고 Loki로 전송합니다.
+
+![Loki 로그 조회](./images/loki.png)
+
+### Tempo (분산 추적)
+
+Tempo는 마이크로서비스 간의 요청 흐름을 추적하는 분산 추적 시스템입니다. OpenTelemetry, Zipkin, Jaeger 등 다양한 프로토콜을 지원합니다.
+
+![Tempo 트레이스 보기](./images/tempo.png)
 
 ## 애플리케이션 연동 방법
 
