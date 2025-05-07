@@ -7,10 +7,15 @@ services:
       - "8001:8000"
     networks:
       - food-delivery
+      - monitoring
     environment:
       - DB_URL=postgresql://user:pass@user-db:5432/user
       - JWT_SECRET=mysecretkey
       - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - ./shared:/app/shared
+      - microservices_logs:/var/log/microservices
+    user: root
     depends_on:
       - user-db
       - redis
@@ -44,9 +49,14 @@ services:
       - "8002:8000"
     networks:
       - food-delivery
+      - monitoring
     environment:
       - DB_URL=postgresql://restaurant:pass@restaurant-db:5432/restaurant
       - REDIS_URL=redis://redis:6379/1
+    volumes:
+      - ./shared:/app/shared
+      - microservices_logs:/var/log/microservices
+    user: root
     depends_on:
       - restaurant-db
       - redis
@@ -96,11 +106,16 @@ services:
       - "8003:8000"
     networks:
       - food-delivery
+      - monitoring
     environment:
       - DB_URL=postgresql://order:pass@order-db:5432/order
       - USER_SERVICE_URL=http://user-service:8000
       - RESTAURANT_SERVICE_URL=http://restaurant-service:8000
       - REDIS_URL=redis://redis:6379/2
+    volumes:
+      - ./shared:/app/shared
+      - microservices_logs:/var/log/microservices
+    user: root
     depends_on:
       - order-db
       - user-service
@@ -147,9 +162,13 @@ services:
 networks:
   food-delivery:
     driver: bridge
+  monitoring:
+    external: true
 
 volumes:
   user-data:
   restaurant-data:
   order-data:
   redis-data:
+  microservices_logs:
+    driver: local

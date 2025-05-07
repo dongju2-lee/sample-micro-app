@@ -7,8 +7,11 @@ networks:
 volumes:
   prometheus_data: {}
   loki_data: {}
+  loki_wal: {}
   tempo_data: {}
   grafana_data: {}
+  sample-micro-app_microservices_logs:
+    external: true
 
 services:
   # Prometheus - 메트릭 수집 및 저장
@@ -35,23 +38,26 @@ services:
     image: grafana/loki:latest
     container_name: loki
     restart: unless-stopped
+    user: root
     volumes:
       - ./loki/loki-config.yml:/etc/loki/local-config.yaml
       - loki_data:/loki
+      - loki_wal:/wal
     ports:
       - "3100:3100"
     command: -config.file=/etc/loki/local-config.yaml
     networks:
       - monitoring
 
-  # Promtail - 로그 수집 에이전트
+  # Promtail - 로그 수집기
   promtail:
     image: grafana/promtail:latest
     container_name: promtail
     restart: unless-stopped
+    user: root
     volumes:
       - ./promtail/promtail-config.yml:/etc/promtail/config.yml
-      - /var/log:/var/log
+      - sample-micro-app_microservices_logs:/var/log/microservices:ro
     command: -config.file=/etc/promtail/config.yml
     ports:
       - "9080:9080"
@@ -65,6 +71,7 @@ services:
     image: grafana/tempo:latest
     container_name: tempo
     restart: unless-stopped
+    user: root
     volumes:
       - ./tempo/tempo-config.yml:/etc/tempo/config.yml
       - tempo_data:/tmp/tempo

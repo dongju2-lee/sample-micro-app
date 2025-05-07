@@ -16,6 +16,17 @@ import httpx
 import redis
 from fastapi.security import OAuth2PasswordBearer, HTTPBearer
 
+# 로깅 관련 모듈 임포트
+import sys
+import logging
+try:
+    from shared.logger import ServiceLogger
+    from shared.middleware import LoggingMiddleware
+    LOGGING_ENABLED = True
+except ImportError:
+    print("Warning: Shared logging module not found. Logging disabled.")
+    LOGGING_ENABLED = False
+
 # 환경변수 설정
 DB_URL = os.getenv("DB_URL", "postgresql://order:pass@localhost:5432/order")
 USER_SERVICE_URL = os.getenv("USER_SERVICE_URL", "http://localhost:8001")
@@ -34,12 +45,17 @@ Base = declarative_base()
 # Redis 설정
 redis_client = redis.from_url(REDIS_URL)
 
-# Helper 함수
-def get_redis_client():
-    return redis_client
+# 로거 초기화
+logger = None
+if LOGGING_ENABLED:
+    logger = ServiceLogger("order-service")
 
 # 결제 실패율 설정 전역 변수
 payment_fail_percent = 0
+
+# 인위적 지연 및 에러 설정을 위한 전역 변수
+global_delay_ms = 0
+chaos_error_enabled = False
 
 # JSON에서 datetime을 처리하기 위한 인코더
 class DateTimeEncoder(json.JSONEncoder):
@@ -160,6 +176,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 로깅 미들웨어 추가
+if LOGGING_ENABLED and logger:
+    app.add_middleware(LoggingMiddleware, logger=logger)
+    logger.info("Order Service 시작됨", version="1.0.0")
 
 # 의존성 주입
 def get_db():

@@ -7,29 +7,41 @@ positions:
 
 clients:
   - url: http://loki:3100/loki/api/v1/push
+    tenant_id: "fake"
+    batchwait: 1s
+    batchsize: 1048576
+    backoff_config:
+      min_period: 1s
+      max_period: 5s
+      max_retries: 10
 
 scrape_configs:
-  - job_name: system
+  - job_name: user-service
     static_configs:
-      - targets:
-          - localhost
-        labels:
-          job: varlogs
-          __path__: /var/log/*log
+    - targets:
+        - localhost
+      labels:
+        job: microservices
+        service: user-service
+        app: food-delivery
+        __path__: /var/log/microservices/user-service/*.log
 
-  - job_name: docker
+  - job_name: restaurant-service
     static_configs:
-      - targets:
-          - localhost
-        labels:
-          job: docker
-          __path__: /var/lib/docker/containers/*/*log
+    - targets:
+        - localhost
+      labels:
+        job: microservices
+        service: restaurant-service
+        app: food-delivery
+        __path__: /var/log/microservices/restaurant-service/*.log
 
-  - job_name: app-logs
+  - job_name: order-service
     static_configs:
-      - targets:
-          - localhost
-        labels:
-          job: app-logs
-          app: sample-micro-app
-          __path__: /var/log/app/*.log 
+    - targets:
+        - localhost
+      labels:
+        job: microservices
+        service: order-service
+        app: food-delivery
+        __path__: /var/log/microservices/order-service/*.log 

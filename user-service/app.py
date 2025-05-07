@@ -16,6 +16,17 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session
 import redis
 
+# 로깅 관련 모듈 임포트
+import sys
+import logging
+try:
+    from shared.logger import ServiceLogger
+    from shared.middleware import LoggingMiddleware
+    LOGGING_ENABLED = True
+except ImportError:
+    print("Warning: Shared logging module not found. Logging disabled.")
+    LOGGING_ENABLED = False
+
 # 환경변수 설정
 DB_URL = os.getenv("DB_URL", "postgresql://user:pass@localhost:5432/user")
 JWT_SECRET = os.getenv("JWT_SECRET", "mysecretkey")
@@ -82,6 +93,11 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 # 데이터베이스 초기화
 Base.metadata.create_all(bind=engine)
 
+# 로거 초기화
+logger = None
+if LOGGING_ENABLED:
+    logger = ServiceLogger("user-service")
+
 # FastAPI 애플리케이션 생성
 app = FastAPI(
     title="User Service API",
@@ -114,6 +130,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 로깅 미들웨어 추가
+if LOGGING_ENABLED and logger:
+    app.add_middleware(LoggingMiddleware, logger=logger)
+    logger.info("User Service 시작됨", version="1.0.0")
 
 # 의존성 주입
 def get_db():

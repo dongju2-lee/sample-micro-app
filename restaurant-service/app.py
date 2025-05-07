@@ -1,7 +1,8 @@
 import os
 import time
 import json
-from typing import List, Optional
+import random
+from typing import List, Optional, Dict
 from datetime import datetime, timedelta
 from fastapi import FastAPI, HTTPException, Depends, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -11,6 +12,17 @@ from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, 
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, Session, relationship
 import redis
+
+# 로깅 관련 모듈 임포트
+import sys
+import logging
+try:
+    from shared.logger import ServiceLogger
+    from shared.middleware import LoggingMiddleware
+    LOGGING_ENABLED = True
+except ImportError:
+    print("Warning: Shared logging module not found. Logging disabled.")
+    LOGGING_ENABLED = False
 
 # 환경변수 설정
 DB_URL = os.getenv("DB_URL", "postgresql://restaurant:pass@localhost:5432/restaurant")
@@ -24,8 +36,14 @@ Base = declarative_base()
 # Redis 설정
 redis_client = redis.from_url(REDIS_URL)
 
-# 인위적 지연 설정을 위한 전역 변수
-inventory_delay_ms = 0
+# 인위적 지연 및 에러 설정을 위한 전역 변수
+global_delay_ms = 0
+chaos_error_enabled = False
+
+# 로거 초기화
+logger = None
+if LOGGING_ENABLED:
+    logger = ServiceLogger("restaurant-service")
 
 # 모델 정의
 class Restaurant(Base):
@@ -131,6 +149,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 로깅 미들웨어 추가
+if LOGGING_ENABLED and logger:
+    app.add_middleware(LoggingMiddleware, logger=logger)
+    logger.info("Restaurant Service 시작됨", version="1.0.0")
 
 # 의존성 주입
 def get_db():
@@ -238,8 +261,8 @@ def insert_sample_data(db: Session):
 @app.middleware("http")
 async def add_inventory_delay_middleware(request: Request, call_next):
     # 특정 API에 지연 적용 (재고 관련)
-    if request.url.path.startswith("/inventory") and inventory_delay_ms > 0:
-        time.sleep(inventory_delay_ms / 1000)
+    if request.url.path.startswith("/inventory") and global_delay_ms > 0:
+        time.sleep(global_delay_ms / 1000)
     
     response = await call_next(request)
     return response
@@ -616,8 +639,8 @@ def set_inventory_delay(config: InventoryDelayConfig):
         }
         ```
     """
-    global inventory_delay_ms
-    inventory_delay_ms = config.delay_ms
+    global global_delay_ms
+    global_delay_ms = config.delay_ms
     return {"message": f"Inventory update delay set to {config.delay_ms}ms"}
 
 # 커스텀 OpenAPI 스키마 생성 함수 추가

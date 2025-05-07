@@ -29,11 +29,35 @@
 
 - Docker 및 Docker Compose가 설치되어 있어야 합니다.
 
-### 실행 방법
+### 사전 설정
 
-다음 명령어로 전체 시스템을 실행할 수 있습니다:
+시스템을 시작하기 전에 다음 필수 Docker 리소스를 생성해야 합니다:
 
 ```bash
+# 로그 저장용 볼륨 생성
+docker volume create app_logs
+
+# 마이크로서비스와 모니터링 시스템 간 통신을 위한 네트워크 생성
+docker network create monitoring
+```
+
+이 리소스들은 docker-compose.yml 파일에서 외부 리소스로 지정되어 있어 미리 생성해야 합니다:
+- `app_logs`: 마이크로서비스의 로그를 저장하고 Promtail이 수집할 수 있도록 하는 공유 볼륨
+- `monitoring`: 마이크로서비스와 모니터링 인프라(Prometheus, Loki, Grafana 등) 간의 통신을 위한 공유 네트워크
+
+### 실행 방법
+
+다음 순서로 시스템을 시작하세요:
+
+1. 먼저 모니터링 인프라 시작:
+```bash
+cd infra
+docker-compose up -d
+```
+
+2. 그 다음 마이크로서비스 애플리케이션 시작:
+```bash
+cd ..  # 프로젝트 루트 디렉토리로 이동
 docker-compose up -d
 ```
 
@@ -43,6 +67,7 @@ docker-compose up -d
 - Restaurant Service: http://localhost:8002
 - Order Service: http://localhost:8003
 - API Gateway: http://localhost:80
+- Grafana (모니터링): http://localhost:3000 (admin / password)
 
 ### API 문서 (Swagger UI)
 
