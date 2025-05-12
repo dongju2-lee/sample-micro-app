@@ -99,7 +99,7 @@ services:
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_INSTALL_PLUGINS=grafana-piechart-panel
       # 렌더러 설정 추가
-      - GF_RENDERING_SERVER_URL=http://renderer:9581/render
+      - GF_RENDERING_SERVER_URL=http://renderer:8081/render
       - GF_RENDERING_CALLBACK_URL=http://grafana:3000/
       - GF_LOG_FILTERS=rendering:debug
     ports:
@@ -121,6 +121,6 @@ services:
     environment:
       - ENABLE_METRICS=true
     ports:
-      - "9581:9581"
+      - "9581:8081"
     networks:
       - monitoring
