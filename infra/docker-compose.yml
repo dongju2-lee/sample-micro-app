@@ -115,9 +115,12 @@ services:
   # Grafana 이미지 렌더러
   renderer:
     image: grafana/grafana-image-renderer:latest
-    ports:
-      - "9581:9581"
+    container_name: renderer
+    restart: unless-stopped
+    user: root
     environment:
       - ENABLE_METRICS=true
+    ports:
+      - "9581:9581"
     networks:
       - monitoring
