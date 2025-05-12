@@ -120,4 +120,4 @@ services:
     environment:
       - ENABLE_METRICS=true
     networks:
-      - monitoring-network
+      - monitoring
