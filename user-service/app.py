@@ -22,7 +22,7 @@ import logging
 try:
     from shared.logger import ServiceLogger
     from shared.middleware import LoggingMiddleware
-    from shared.prometheus_middleware import PrometheusMiddleware, get_metrics_endpoint
+    from shared.prometheus_middleware import create_prometheus_middleware, get_metrics_endpoint
     LOGGING_ENABLED = True
     PROMETHEUS_ENABLED = True
 except ImportError:
@@ -141,7 +141,7 @@ if LOGGING_ENABLED and logger:
 
 # Prometheus 미들웨어 추가
 if PROMETHEUS_ENABLED:
-    app.add_middleware(PrometheusMiddleware, service_name="user-service")
+    app.middleware("http")(create_prometheus_middleware("user-service"))
 
 # 의존성 주입
 def get_db():

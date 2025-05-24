@@ -58,13 +58,21 @@ REDIS_OPERATIONS = Counter(
 )
 
 class PrometheusMiddleware:
-    def __init__(self, service_name: str):
+    def __init__(self, app, service_name: str):
+        self.app = app
         self.service_name = service_name
     
-    async def __call__(self, request: Request, call_next):
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        request = Request(scope, receive)
+        
         # 메트릭 엔드포인트는 메트릭 수집하지 않음
         if request.url.path == "/metrics":
-            return await call_next(request)
+            await self.app(scope, receive, send)
+            return
         
         method = request.method
         path = request.url.path
@@ -75,10 +83,22 @@ class PrometheusMiddleware:
         # 요청 시작 시간 기록
         start_time = time.time()
         
+        async def call_next(request):
+            return await self.app(scope, receive, send)
+        
         try:
-            # 요청 처리
-            response = await call_next(request)
-            status_code = response.status_code
+            # 요청 처리를 위한 response 캡처
+            response_started = False
+            status_code = 200
+            
+            async def send_wrapper(message):
+                nonlocal response_started, status_code
+                if message["type"] == "http.response.start":
+                    response_started = True
+                    status_code = message["status"]
+                await send(message)
+            
+            await self.app(scope, receive, send_wrapper)
             
         except Exception as e:
             status_code = 500
@@ -106,8 +126,6 @@ class PrometheusMiddleware:
             
             # 시스템 메트릭 업데이트
             self._update_system_metrics()
-        
-        return response
     
     def _update_system_metrics(self):
         """시스템 메트릭 업데이트"""
@@ -127,6 +145,12 @@ class PrometheusMiddleware:
         except Exception as e:
             # 시스템 메트릭 수집 실패 시 로그만 남기고 계속 진행
             print(f"Failed to collect system metrics: {e}")
+
+def create_prometheus_middleware(service_name: str):
+    """Prometheus 미들웨어 팩토리 함수"""
+    def prometheus_middleware(app):
+        return PrometheusMiddleware(app, service_name)
+    return prometheus_middleware
 
 def get_metrics_endpoint():
     """메트릭 엔드포인트 반환"""
