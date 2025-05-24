@@ -22,10 +22,13 @@ import logging
 try:
     from shared.logger import ServiceLogger
     from shared.middleware import LoggingMiddleware
+    from shared.prometheus_middleware import PrometheusMiddleware, get_metrics_endpoint
     LOGGING_ENABLED = True
+    PROMETHEUS_ENABLED = True
 except ImportError:
     print("Warning: Shared logging module not found. Logging disabled.")
     LOGGING_ENABLED = False
+    PROMETHEUS_ENABLED = False
 
 # 환경변수 설정
 DB_URL = os.getenv("DB_URL", "postgresql://user:pass@localhost:5432/user")
@@ -136,6 +139,10 @@ if LOGGING_ENABLED and logger:
     app.add_middleware(LoggingMiddleware, logger=logger)
     logger.info("User Service 시작됨", version="1.0.0")
 
+# Prometheus 미들웨어 추가
+if PROMETHEUS_ENABLED:
+    app.add_middleware(PrometheusMiddleware, service_name="user-service")
+
 # 의존성 주입
 def get_db():
     db = SessionLocal()
@@ -210,6 +217,18 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
     return user
 
 # 헬스체크 엔드포인트
+# Prometheus 메트릭 엔드포인트
+if PROMETHEUS_ENABLED:
+    @app.get(
+        "/metrics",
+        tags=["모니터링"],
+        summary="Prometheus 메트릭",
+        description="Prometheus가 수집할 수 있는 메트릭 데이터를 반환합니다.",
+        response_description="Prometheus 형식의 메트릭 데이터"
+    )
+    async def metrics():
+        return await get_metrics_endpoint()()
+
 @app.get(
     "/health", 
     tags=["상태 확인"], 

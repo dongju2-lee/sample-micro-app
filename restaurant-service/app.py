@@ -19,10 +19,13 @@ import logging
 try:
     from shared.logger import ServiceLogger
     from shared.middleware import LoggingMiddleware
+    from shared.prometheus_middleware import PrometheusMiddleware, get_metrics_endpoint, increment_redis_operation
     LOGGING_ENABLED = True
+    PROMETHEUS_ENABLED = True
 except ImportError:
     print("Warning: Shared logging module not found. Logging disabled.")
     LOGGING_ENABLED = False
+    PROMETHEUS_ENABLED = False
 
 # 환경변수 설정
 DB_URL = os.getenv("DB_URL", "postgresql://restaurant:pass@localhost:5432/restaurant")
@@ -155,6 +158,10 @@ if LOGGING_ENABLED and logger:
     app.add_middleware(LoggingMiddleware, logger=logger)
     logger.info("Restaurant Service 시작됨", version="1.0.0")
 
+# Prometheus 미들웨어 추가
+if PROMETHEUS_ENABLED:
+    app.add_middleware(PrometheusMiddleware, service_name="restaurant-service")
+
 # 의존성 주입
 def get_db():
     db = SessionLocal()
@@ -268,6 +275,18 @@ async def add_inventory_delay_middleware(request: Request, call_next):
     return response
 
 # 헬스체크 엔드포인트
+# Prometheus 메트릭 엔드포인트
+if PROMETHEUS_ENABLED:
+    @app.get(
+        "/metrics",
+        tags=["모니터링"],
+        summary="Prometheus 메트릭",
+        description="Prometheus가 수집할 수 있는 메트릭 데이터를 반환합니다.",
+        response_description="Prometheus 형식의 메트릭 데이터"
+    )
+    async def metrics():
+        return await get_metrics_endpoint()()
+
 @app.get(
     "/health", 
     tags=["상태 확인"], 
@@ -329,9 +348,18 @@ def get_all_menus(db: Session = Depends(get_db)):
         List[Menu]: 메뉴 목록
     """
     # Redis에서 캐시된 결과 확인
-    cached_menus = redis_client.get("all_menus")
-    if cached_menus:
-        return json.loads(cached_menus)
+    try:
+        cached_menus = redis_client.get("all_menus")
+        if cached_menus:
+            if PROMETHEUS_ENABLED:
+                increment_redis_operation("restaurant-service", "get", "hit")
+            return json.loads(cached_menus)
+        else:
+            if PROMETHEUS_ENABLED:
+                increment_redis_operation("restaurant-service", "get", "miss")
+    except Exception as e:
+        if PROMETHEUS_ENABLED:
+            increment_redis_operation("restaurant-service", "get", "error")
     
     # 캐시가 없으면 DB에서 조회
     menus = db.query(Menu).all()
@@ -353,7 +381,13 @@ def get_all_menus(db: Session = Depends(get_db)):
     ]
     
     # Redis에 캐싱 (10초 유효)
-    redis_client.setex("all_menus", 10, json.dumps(menu_list))
+    try:
+        redis_client.setex("all_menus", 10, json.dumps(menu_list))
+        if PROMETHEUS_ENABLED:
+            increment_redis_operation("restaurant-service", "set", "success")
+    except Exception as e:
+        if PROMETHEUS_ENABLED:
+            increment_redis_operation("restaurant-service", "set", "error")
     
     return menu_list
 
@@ -398,9 +432,18 @@ def get_menu(menu_id: int, db: Session = Depends(get_db)):
     """
     # Redis에서 캐시된 결과 확인
     cache_key = f"menu:{menu_id}"
-    cached_menu = redis_client.get(cache_key)
-    if cached_menu:
-        return json.loads(cached_menu)
+    try:
+        cached_menu = redis_client.get(cache_key)
+        if cached_menu:
+            if PROMETHEUS_ENABLED:
+                increment_redis_operation("restaurant-service", "get", "hit")
+            return json.loads(cached_menu)
+        else:
+            if PROMETHEUS_ENABLED:
+                increment_redis_operation("restaurant-service", "get", "miss")
+    except Exception as e:
+        if PROMETHEUS_ENABLED:
+            increment_redis_operation("restaurant-service", "get", "error")
     
     # 캐시가 없으면 DB에서 조회
     menu = db.query(Menu).filter(Menu.id == menu_id).first()
@@ -421,7 +464,13 @@ def get_menu(menu_id: int, db: Session = Depends(get_db)):
     }
     
     # Redis에 캐싱 (30초 유효)
-    redis_client.setex(cache_key, 30, json.dumps(menu_data))
+    try:
+        redis_client.setex(cache_key, 30, json.dumps(menu_data))
+        if PROMETHEUS_ENABLED:
+            increment_redis_operation("restaurant-service", "set", "success")
+    except Exception as e:
+        if PROMETHEUS_ENABLED:
+            increment_redis_operation("restaurant-service", "set", "error")
     
     return menu_data
 
@@ -496,8 +545,14 @@ def update_inventory(menu_id: int, update: InventoryUpdate, db: Session = Depend
     db.commit()
     
     # Redis 캐시 삭제
-    redis_client.delete(f"menu:{menu_id}")
-    redis_client.delete("all_menus")
+    try:
+        redis_client.delete(f"menu:{menu_id}")
+        redis_client.delete("all_menus")
+        if PROMETHEUS_ENABLED:
+            increment_redis_operation("restaurant-service", "delete", "success")
+    except Exception as e:
+        if PROMETHEUS_ENABLED:
+            increment_redis_operation("restaurant-service", "delete", "error")
     
     return {"menu_id": menu_id, "remaining_inventory": menu.inventory}
 
@@ -565,8 +620,14 @@ def restore_inventory(menu_id: int, update: InventoryUpdate, db: Session = Depen
     db.commit()
     
     # Redis 캐시 삭제
-    redis_client.delete(f"menu:{menu_id}")
-    redis_client.delete("all_menus")
+    try:
+        redis_client.delete(f"menu:{menu_id}")
+        redis_client.delete("all_menus")
+        if PROMETHEUS_ENABLED:
+            increment_redis_operation("restaurant-service", "delete", "success")
+    except Exception as e:
+        if PROMETHEUS_ENABLED:
+            increment_redis_operation("restaurant-service", "delete", "error")
     
     return {"menu_id": menu_id, "remaining_inventory": menu.inventory}
 

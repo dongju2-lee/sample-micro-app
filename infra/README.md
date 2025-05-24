@@ -103,7 +103,7 @@ Tempo는 마이크로서비스 간의 요청 흐름을 추적하는 분산 추�
    - 애플리케이션 실행 시 OpenTelemetry 자동 계측 사용:
      ```bash
      OTEL_SERVICE_NAME=your-service-name \
-     OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4317 \
+     OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317 \
      OTEL_TRACES_EXPORTER=otlp \
      opentelemetry-instrument python app.py
      ```
@@ -123,15 +123,15 @@ Tempo는 마이크로서비스 간의 요청 흐름을 추적하는 분산 추�
      ```yaml
      environment:
        - OTEL_SERVICE_NAME=your-service-name
-       - OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4317
+       - OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
        - OTEL_RESOURCE_ATTRIBUTES=service.name=your-service-name,service.namespace=your-namespace
        - OTEL_TRACES_EXPORTER=otlp
        - OTEL_METRICS_EXPORTER=otlp
      ```
 
-3. **Mac OS에서 host.docker.internal 사용 시 주의사항**:
-   - Mac OS에서는 `host.docker.internal` 도메인이 자동으로 호스트 IP로 해석됩니다.
-   - Linux 환경에서는 Docker 옵션으로 `--add-host=host.docker.internal:host-gateway` 설정이 필요할 수 있습니다.
+3. **크로스 플랫폼 호환성을 위한 설정**:
+   - 이 프로젝트는 Linux 환경에서도 원활히 동작하도록 `localhost`를 사용합니다.
+   - 컨테이너에서 호스트의 서비스에 접근할 때는 `localhost`를 사용하여 크로스 플랫폼 호환성을 보장합니다.
 
 4. **트레이스 확인**:
    - Grafana에 접속하여 Explore 메뉴로 이동

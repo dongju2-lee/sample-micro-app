@@ -8,3 +8,5 @@ passlib==1.7.4
 redis==6.0.0
 httpx==0.28.1
 python-multipart==0.0.20
+prometheus_client==0.20.0
+psutil==6.1.0

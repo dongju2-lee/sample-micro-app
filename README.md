@@ -43,6 +43,12 @@ docker volume create sample-micro-app_microservices_logs
 docker network create monitoring
 ```
 
+#### Linux 환경 호환성
+
+이 프로젝트는 Linux 환경에서도 원활히 동작하도록 설정되어 있습니다:
+- `host.docker.internal` 대신 `localhost`를 사용하여 크로스 플랫폼 호환성 보장
+- 각 마이크로서비스에 `extra_hosts: - "localhost:host-gateway"` 설정 추가로 호스트 네트워크 접근 가능
+
 이 리소스들은 docker-compose.yml 파일에서 외부 리소스로 지정되어 있어 미리 생성해야 합니다:
 - `sample-micro-app_microservices_logs`: 마이크로서비스의 로그를 저장하고 Promtail이 수집할 수 있도록 하는 공유 볼륨
 - `monitoring`: 마이크로서비스와 모니터링 인프라(Prometheus, Loki, Tempo, Grafana 등) 간의 통신을 위한 공유 네트워크
@@ -280,6 +286,77 @@ curl -X POST http://localhost:8001/chaos/delay -H "Content-Type: application/jso
    - 여러 클라이언트에서 동시에 특정 메뉴 주문
    - 재고가 정확히 감소하는지 확인
 
+## 모니터링 및 메트릭
+
+### Prometheus 메트릭 수집
+
+각 마이크로서비스는 Prometheus 메트릭을 `/metrics` 엔드포인트에서 제공합니다:
+
+- **User Service**: http://localhost:8001/metrics
+- **Restaurant Service**: http://localhost:8002/metrics  
+- **Order Service**: http://localhost:8003/metrics
+
+#### 수집되는 메트릭
+
+1. **HTTP 요청 메트릭**:
+   - `http_requests_total`: 총 HTTP 요청 수 (method, endpoint, status_code, service_name별)
+   - `http_request_duration_seconds`: HTTP 요청 처리 시간 (method, endpoint, service_name별)
+   - `http_requests_in_progress`: 현재 처리 중인 HTTP 요청 수
+
+2. **시스템 메트릭**:
+   - `cpu_usage_percent`: CPU 사용률
+   - `memory_usage_bytes`: 메모리 사용량 (바이트)
+   - `memory_usage_percent`: 메모리 사용률 (%)
+
+3. **Redis 연산 메트릭**:
+   - `redis_operations_total`: Redis 연산 총 횟수 (service_name, operation, status별)
+   - 캐시 히트/미스/에러 상태 추적
+
+4. **데이터베이스 메트릭**:
+   - `database_connections_active`: 활성 데이터베이스 연결 수
+
+#### Prometheus 설정
+
+Prometheus는 15초마다 각 서비스의 메트릭을 수집하도록 설정되어 있습니다:
+
+```yaml
+scrape_configs:
+  - job_name: 'user-service'
+    static_configs:
+      - targets: ['localhost:8001']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+    
+  - job_name: 'restaurant-service'
+    static_configs:
+      - targets: ['localhost:8002']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+    
+  - job_name: 'order-service'
+    static_configs:
+      - targets: ['localhost:8003']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+```
+
+#### 메트릭 활용 예시
+
+1. **응답 시간 모니터링**:
+   ```promql
+   histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))
+   ```
+
+2. **에러율 모니터링**:
+   ```promql
+   rate(http_requests_total{status_code=~"5.."}[5m]) / rate(http_requests_total[5m])
+   ```
+
+3. **Redis 캐시 히트율**:
+   ```promql
+   rate(redis_operations_total{status="hit"}[5m]) / rate(redis_operations_total{operation="get"}[5m])
+   ```
+
 ## 성능 테스트 및 장애 주입
 
 이 시스템은 다양한 카오스 엔지니어링 기능을 제공합니다:
@@ -357,7 +434,7 @@ docker-compose up -d
 2. **환경 변수 설정**: 각 서비스에 다음 환경 변수가 설정되어 있습니다:
    ```
    - OTEL_SERVICE_NAME=서비스명
-   - OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4317
+          - OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
    - OTEL_RESOURCE_ATTRIBUTES=service.name=서비스명,service.namespace=food-delivery
    - OTEL_TRACES_EXPORTER=otlp
    - OTEL_METRICS_EXPORTER=otlp
