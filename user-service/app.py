@@ -141,7 +141,8 @@ if LOGGING_ENABLED and logger:
 
 # Prometheus 미들웨어 추가
 if PROMETHEUS_ENABLED:
-    app.middleware("http")(create_prometheus_middleware("user-service"))
+    middleware_factory = create_prometheus_middleware("user-service")
+    app.add_middleware(middleware_factory)
 
 # 의존성 주입
 def get_db():
@@ -218,16 +219,23 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
 
 # 헬스체크 엔드포인트
 # Prometheus 메트릭 엔드포인트
-if PROMETHEUS_ENABLED:
-    @app.get(
-        "/metrics",
-        tags=["모니터링"],
-        summary="Prometheus 메트릭",
-        description="Prometheus가 수집할 수 있는 메트릭 데이터를 반환합니다.",
-        response_description="Prometheus 형식의 메트릭 데이터"
-    )
-    async def metrics():
-        return await get_metrics_endpoint()()
+@app.get(
+    "/metrics",
+    tags=["모니터링"],
+    summary="Prometheus 메트릭",
+    description="Prometheus가 수집할 수 있는 메트릭 데이터를 반환합니다.",
+    response_description="Prometheus 형식의 메트릭 데이터"
+)
+async def metrics():
+    try:
+        if PROMETHEUS_ENABLED:
+            from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+            from fastapi.responses import PlainTextResponse
+            return PlainTextResponse(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+        else:
+            return {"error": "Prometheus metrics not enabled"}
+    except Exception as e:
+        return {"error": f"Metrics generation failed: {str(e)}"}
 
 @app.get(
     "/health", 

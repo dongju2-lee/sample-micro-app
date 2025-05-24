@@ -160,7 +160,8 @@ if LOGGING_ENABLED and logger:
 
 # Prometheus 미들웨어 추가
 if PROMETHEUS_ENABLED:
-    app.middleware("http")(create_prometheus_middleware("restaurant-service"))
+    middleware_factory = create_prometheus_middleware("restaurant-service")
+    app.add_middleware(middleware_factory)
 
 # 의존성 주입
 def get_db():
@@ -276,16 +277,19 @@ async def add_inventory_delay_middleware(request: Request, call_next):
 
 # 헬스체크 엔드포인트
 # Prometheus 메트릭 엔드포인트
-if PROMETHEUS_ENABLED:
-    @app.get(
-        "/metrics",
-        tags=["모니터링"],
-        summary="Prometheus 메트릭",
-        description="Prometheus가 수집할 수 있는 메트릭 데이터를 반환합니다.",
-        response_description="Prometheus 형식의 메트릭 데이터"
-    )
-    async def metrics():
-        return await get_metrics_endpoint()()
+@app.get(
+    "/metrics",
+    tags=["모니터링"],
+    summary="Prometheus 메트릭",
+    description="Prometheus가 수집할 수 있는 메트릭 데이터를 반환합니다.",
+    response_description="Prometheus 형식의 메트릭 데이터"
+)
+async def metrics():
+    if PROMETHEUS_ENABLED:
+        metrics_func = get_metrics_endpoint()
+        return await metrics_func()
+    else:
+        return {"error": "Prometheus metrics not enabled"}
 
 @app.get(
     "/health", 

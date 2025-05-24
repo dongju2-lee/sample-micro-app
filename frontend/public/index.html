@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>푸드 딜리버리 - 맛있는 음식을 빠르게</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <header class="header">
+        <nav class="nav container">
+            <a href="/" class="logo">🍔 푸드 딜리버리</a>
+            
+            <ul class="nav-links">
+                <li><a href="/">홈</a></li>
+                <li><a href="#menu">메뉴</a></li>
+                <li>
+                    <button id="cartToggleBtn" class="btn btn-secondary btn-small">
+                        🛒 장바구니 (<span id="cartCount">0</span>)
+                    </button>
+                </li>
+                <li>
+                    <button id="autoTestBtn" class="btn btn-danger btn-small">
+                        🤖 자동 테스트
+                    </button>
+                </li>
+            </ul>
+            
+            <div class="auth-section">
+                <!-- 동적으로 채워짐 -->
+            </div>
+        </nav>
+    </header>
+
+    <main class="main">
+        <section class="hero">
+            <div class="container">
+                <h1>맛있는 음식을 빠르게 배달받아보세요</h1>
+                <p>신선한 재료로 만든 다양한 메뉴를 집에서 편안하게 즐기세요</p>
+                <a href="#menu" class="btn btn-primary">메뉴 보기</a>
+            </div>
+        </section>
+
+        <section id="menu" class="container">
+            <h2 style="text-align: center; color: white; margin-bottom: 2rem;">인기 메뉴</h2>
+            <div id="menuContainer">
+                <!-- 메뉴가 동적으로 로드됩니다 -->
+            </div>
+        </section>
+    </main>
+
+    <!-- 장바구니 사이드바 -->
+    <div id="cart" class="cart">
+        <div class="cart-header">
+            <h3>장바구니</h3>
+            <button id="cartToggleBtn" class="btn btn-small btn-secondary">✕</button>
+        </div>
+        
+        <div class="cart-items" id="cartItems">
+            <!-- 장바구니 아이템들이 동적으로 추가됩니다 -->
+        </div>
+        
+        <div class="cart-footer">
+            <div class="cart-total" id="cartTotal">총 금액: 0원</div>
+            <button id="checkoutBtn" class="btn btn-primary" style="width: 100%;">주문하기</button>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/auth.js"></script>
+    <script src="/js/app.js"></script>
+</body>
+</html> 

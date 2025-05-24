@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>주문 내역 - 푸드 딜리버리</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <header class="header">
+        <nav class="nav container">
+            <a href="/" class="logo">🍔 푸드 딜리버리</a>
+            
+            <ul class="nav-links">
+                <li><a href="/">홈</a></li>
+                <li><a href="/orders.html">주문내역</a></li>
+                <li>
+                    <button id="autoTestBtn" class="btn btn-danger btn-small">
+                        🤖 자동 테스트
+                    </button>
+                </li>
+            </ul>
+            
+            <div class="auth-section">
+                <!-- 동적으로 채워짐 -->
+            </div>
+        </nav>
+    </header>
+
+    <main class="main">
+        <div class="container">
+            <h2 style="text-align: center; color: white; margin-bottom: 2rem;">주문 내역</h2>
+            
+            <div id="ordersContainer">
+                <!-- 주문 내역이 동적으로 로드됩니다 -->
+            </div>
+        </div>
+    </main>
+
+    <script src="/js/api.js"></script>
+    <script src="/js/auth.js"></script>
+    <script src="/js/app.js"></script>
+</body>
+</html> 

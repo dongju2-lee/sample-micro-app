@@ -26,15 +26,12 @@ scrape_configs:
     metrics_path: '/metrics'
     scrape_interval: 15s
 
-  # 시스템 모니터링 (선택사항)
+  # 시스템 모니터링 (Node Exporter)
   - job_name: 'node-exporter'
     static_configs:
-      - targets: ['localhost:9100']
+      - targets: ['node-exporter:9100']
     
   # tempo 연동
   - job_name: 'tempo'
     static_configs:
-      - targets: ['tempo:3200']
-
-remote_write:
-  - url: "http://loki:3100/loki/api/v1/push" 
+      - targets: ['tempo:3200'] 
