@@ -4,10 +4,15 @@ const API_BASE = '';
 // API 호출 헬퍼 함수
 async function apiCall(url, options = {}) {
     try {
+        console.log('API Call:', url, options); // 디버깅용 로그
+        
         const token = localStorage.getItem('authToken');
-        const defaultHeaders = {
-            'Content-Type': 'application/json',
-        };
+        const defaultHeaders = {};
+        
+        // FormData가 아닌 경우에만 Content-Type 설정
+        if (!(options.body instanceof FormData)) {
+            defaultHeaders['Content-Type'] = 'application/json';
+        }
         
         if (token) {
             defaultHeaders['Authorization'] = `Bearer ${token}`;
@@ -21,15 +26,41 @@ async function apiCall(url, options = {}) {
             }
         });
         
-        const data = await response.json();
+        console.log('Response status:', response.status); // 디버깅용 로그
+        console.log('Response headers:', Object.fromEntries(response.headers.entries())); // 디버깅용 로그
+        
+        // 응답 타입 확인
+        const contentType = response.headers.get('Content-Type');
+        let data;
+        
+        if (contentType && contentType.includes('application/json')) {
+            data = await response.json();
+        } else {
+            // JSON이 아닌 경우 텍스트로 읽기
+            const text = await response.text();
+            console.log('Non-JSON response:', text); // 디버깅용 로그
+            try {
+                data = JSON.parse(text);
+            } catch (e) {
+                data = { error: text || 'Unknown error' };
+            }
+        }
+        
+        console.log('Response data:', data); // 디버깅용 로그
         
         if (!response.ok) {
-            throw new Error(data.detail || data.error || 'API 호출에 실패했습니다');
+            throw new Error(data.detail || data.error || `HTTP ${response.status}: ${response.statusText}`);
         }
         
         return data;
     } catch (error) {
         console.error('API Error:', error);
+        console.error('API Error details:', {
+            url,
+            options,
+            message: error.message,
+            stack: error.stack
+        });
         throw error;
     }
 }
@@ -52,7 +83,6 @@ const userAPI = {
         
         return await apiCall('/api/user/login', {
             method: 'POST',
-            headers: {},
             body: formData
         });
     },
