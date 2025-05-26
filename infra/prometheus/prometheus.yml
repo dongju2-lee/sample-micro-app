@@ -7,22 +7,22 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:9090']
 
-  # 마이크로서비스 메트릭 수집
+  # 마이크로서비스 메트릭 수집 (호스트를 통해 접근)
   - job_name: 'user-service'
     static_configs:
-      - targets: ['localhost:8001']
+      - targets: ['user-service:8000']
     metrics_path: '/metrics'
     scrape_interval: 15s
     
   - job_name: 'restaurant-service'
     static_configs:
-      - targets: ['localhost:8002']
+      - targets: ['restaurant-service:8000']
     metrics_path: '/metrics'
     scrape_interval: 15s
     
   - job_name: 'order-service'
     static_configs:
-      - targets: ['localhost:8003']
+      - targets: ['order-service:8000']
     metrics_path: '/metrics'
     scrape_interval: 15s
 

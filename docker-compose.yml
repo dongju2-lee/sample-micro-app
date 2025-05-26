@@ -208,6 +208,7 @@ networks:
     driver: bridge
   monitoring:
     external: true
+    name: global_monitoring_network
 
 volumes:
   user-data:
