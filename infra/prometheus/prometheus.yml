@@ -7,20 +7,31 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:9090']
 
+  # 마이크로서비스 메트릭 수집 (호스트를 통해 접근)
+  - job_name: 'user-service'
+    static_configs:
+      - targets: ['user-service:8000']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+    
+  - job_name: 'restaurant-service'
+    static_configs:
+      - targets: ['restaurant-service:8000']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+    
+  - job_name: 'order-service'
+    static_configs:
+      - targets: ['order-service:8000']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+
+  # 시스템 모니터링 (Node Exporter)
   - job_name: 'node-exporter'
     static_configs:
-      - targets: ['host.docker.internal:9100']
+      - targets: ['node-exporter:9100']
     
-  - job_name: 'sample-micro-app'
-    static_configs:
-      - targets: ['host.docker.internal:8080']
-    
-  # 서비스 추가 시 아래에 작성
-
   # tempo 연동
   - job_name: 'tempo'
     static_configs:
-      - targets: ['tempo:3200']
-
-remote_write:
-  - url: "http://loki:3100/loki/api/v1/push" 
+      - targets: ['tempo:3200'] 

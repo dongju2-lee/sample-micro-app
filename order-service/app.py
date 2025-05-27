@@ -22,10 +22,13 @@ import logging
 try:
     from shared.logger import ServiceLogger
     from shared.middleware import LoggingMiddleware
+    from shared.prometheus_middleware import create_prometheus_middleware, get_metrics_endpoint, increment_redis_operation
     LOGGING_ENABLED = True
+    PROMETHEUS_ENABLED = True
 except ImportError:
     print("Warning: Shared logging module not found. Logging disabled.")
     LOGGING_ENABLED = False
+    PROMETHEUS_ENABLED = False
 
 # 환경변수 설정
 DB_URL = os.getenv("DB_URL", "postgresql://order:pass@localhost:5432/order")
@@ -182,6 +185,11 @@ if LOGGING_ENABLED and logger:
     app.add_middleware(LoggingMiddleware, logger=logger)
     logger.info("Order Service 시작됨", version="1.0.0")
 
+# Prometheus 미들웨어 추가
+if PROMETHEUS_ENABLED:
+    middleware_factory = create_prometheus_middleware("order-service")
+    app.add_middleware(middleware_factory)
+
 # 의존성 주입
 def get_db():
     db = SessionLocal()
@@ -189,6 +197,21 @@ def get_db():
         yield db
     finally:
         db.close()
+
+# Prometheus 메트릭 엔드포인트
+@app.get(
+    "/metrics",
+    tags=["모니터링"],
+    summary="Prometheus 메트릭",
+    description="Prometheus가 수집할 수 있는 메트릭 데이터를 반환합니다.",
+    response_description="Prometheus 형식의 메트릭 데이터"
+)
+async def metrics():
+    if PROMETHEUS_ENABLED:
+        metrics_func = get_metrics_endpoint()
+        return await metrics_func()
+    else:
+        return {"error": "Prometheus metrics not enabled"}
 
 # 헬스체크 엔드포인트
 @app.get(
@@ -270,14 +293,30 @@ def process_payment(order_id: int, total_price: float) -> bool:
 def cache_order(order_id: int, order_data: Dict[str, Any]):
     """주문 정보를 Redis에 캐싱합니다"""
     cache_key = f"order:{order_id}"
-    redis_client.setex(cache_key, 300, json.dumps(order_data, cls=DateTimeEncoder))
+    try:
+        redis_client.setex(cache_key, 300, json.dumps(order_data, cls=DateTimeEncoder))
+        if PROMETHEUS_ENABLED:
+            increment_redis_operation("order-service", "set", "success")
+    except Exception as e:
+        if PROMETHEUS_ENABLED:
+            increment_redis_operation("order-service", "set", "error")
 
 def get_cached_order(order_id: int) -> Optional[Dict[str, Any]]:
     cache_key = f"order:{order_id}"
-    cached_order = redis_client.get(cache_key)
-    if cached_order:
-        return json.loads(cached_order)
-    return None
+    try:
+        cached_order = redis_client.get(cache_key)
+        if cached_order:
+            if PROMETHEUS_ENABLED:
+                increment_redis_operation("order-service", "get", "hit")
+            return json.loads(cached_order)
+        else:
+            if PROMETHEUS_ENABLED:
+                increment_redis_operation("order-service", "get", "miss")
+            return None
+    except Exception as e:
+        if PROMETHEUS_ENABLED:
+            increment_redis_operation("order-service", "get", "error")
+        return None
 
 # 주문 생성 엔드포인트
 @app.post(
@@ -632,7 +671,13 @@ async def cancel_order(order_id: int, request: Request, db: Session = Depends(ge
             pass
     
     # 캐시 삭제
-    redis_client.delete(f"order:{order_id}")
+    try:
+        redis_client.delete(f"order:{order_id}")
+        if PROMETHEUS_ENABLED:
+            increment_redis_operation("order-service", "delete", "success")
+    except Exception as e:
+        if PROMETHEUS_ENABLED:
+            increment_redis_operation("order-service", "delete", "error")
     
     return {"message": "Order cancelled successfully", "order_id": order_id}
 

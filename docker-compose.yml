@@ -8,12 +8,14 @@ services:
     networks:
       - food-delivery
       - monitoring
+    extra_hosts:
+      - "localhost:host-gateway"
     environment:
       - DB_URL=postgresql://user:pass@user-db:5432/user
       - JWT_SECRET=mysecretkey
       - REDIS_URL=redis://redis:6379/0
       - OTEL_SERVICE_NAME=user-service
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4317
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
       - OTEL_RESOURCE_ATTRIBUTES=service.name=user-service,service.namespace=food-delivery
       - OTEL_TRACES_EXPORTER=otlp
       - OTEL_METRICS_EXPORTER=otlp
@@ -55,11 +57,13 @@ services:
     networks:
       - food-delivery
       - monitoring
+    extra_hosts:
+      - "localhost:host-gateway"
     environment:
       - DB_URL=postgresql://restaurant:pass@restaurant-db:5432/restaurant
       - REDIS_URL=redis://redis:6379/1
       - OTEL_SERVICE_NAME=restaurant-service
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4317
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
       - OTEL_RESOURCE_ATTRIBUTES=service.name=restaurant-service,service.namespace=food-delivery
       - OTEL_TRACES_EXPORTER=otlp
       - OTEL_METRICS_EXPORTER=otlp
@@ -117,13 +121,15 @@ services:
     networks:
       - food-delivery
       - monitoring
+    extra_hosts:
+      - "localhost:host-gateway"
     environment:
       - DB_URL=postgresql://order:pass@order-db:5432/order
       - USER_SERVICE_URL=http://user-service:8000
       - RESTAURANT_SERVICE_URL=http://restaurant-service:8000
       - REDIS_URL=redis://redis:6379/2
       - OTEL_SERVICE_NAME=order-service
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4317
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
       - OTEL_RESOURCE_ATTRIBUTES=service.name=order-service,service.namespace=food-delivery
       - OTEL_TRACES_EXPORTER=otlp
       - OTEL_METRICS_EXPORTER=otlp
@@ -160,6 +166,28 @@ services:
       timeout: 5s
       retries: 5
 
+  frontend:
+    build: ./frontend
+    ports:
+      - "8090:3000"
+    networks:
+      - food-delivery
+      - monitoring
+    environment:
+      - USER_SERVICE_URL=http://user-service:8000
+      - RESTAURANT_SERVICE_URL=http://restaurant-service:8000
+      - ORDER_SERVICE_URL=http://order-service:8000
+    depends_on:
+      - user-service
+      - restaurant-service
+      - order-service
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
   load-balancer:
     image: nginx:alpine
     ports:
@@ -170,6 +198,7 @@ services:
       - user-service
       - restaurant-service
       - order-service
+      - frontend
     networks:
       - food-delivery
     restart: unless-stopped
@@ -179,6 +208,7 @@ networks:
     driver: bridge
   monitoring:
     external: true
+    name: global_monitoring_network
 
 volumes:
   user-data:
